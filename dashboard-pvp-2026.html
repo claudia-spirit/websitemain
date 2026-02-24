@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard PVP 2026</title>
+  <style>
+    :root {
+      --bg: #f3f6fb;
+      --card: #ffffff;
+      --text: #132238;
+      --muted: #54657e;
+      --line: #d9e3f0;
+      --brand: #0f766e;
+      --brand-2: #2563eb;
+      --soft: #e8f3ff;
+      --ok-bg: #ecfdf3;
+      --ok-line: #86efac;
+      --radius: 14px;
+      --shadow: 0 12px 28px rgba(16, 24, 40, 0.08);
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Avenir Next", "Segoe UI", sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1100px 540px at -8% -10%, #d2f2ec 0%, transparent 60%),
+        radial-gradient(1100px 620px at 108% 0%, #dce6ff 0%, transparent 55%),
+        var(--bg);
+    }
+    .wrap { max-width: 1220px; margin: 0 auto; padding: 24px; }
+    h1 { margin: 0 0 6px; font-size: clamp(1.4rem, 2.6vw, 2rem); }
+    .sub { margin: 0 0 18px; color: var(--muted); font-size: 0.95rem; }
+    .grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 14px;
+    }
+    .card h2 { margin: 0 0 12px; font-size: 1rem; }
+    .inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
+    .field { display: grid; gap: 6px; }
+    .field label { font-size: 0.82rem; color: var(--muted); }
+    .field input, .field select {
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 10px 11px;
+      font-size: 0.94rem;
+      color: var(--text);
+      background: #fff;
+    }
+    .field input:focus, .field select:focus { outline: 2px solid #bde5ff; border-color: var(--brand-2); }
+    .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+    .kpi {
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      background: linear-gradient(180deg, #fff 0%, #f8fbff 100%);
+      padding: 12px;
+    }
+    .kpi .label { font-size: 0.8rem; color: var(--muted); margin-bottom: 4px; }
+    .kpi .value { font-weight: 700; font-size: 1.12rem; }
+    .hint {
+      margin-top: 10px;
+      border: 1px solid var(--ok-line);
+      background: var(--ok-bg);
+      border-radius: 10px;
+      padding: 10px 11px;
+      font-size: 0.88rem;
+      line-height: 1.35;
+    }
+    .table-wrap {
+      margin-top: 14px;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      overflow: auto;
+      max-height: 460px;
+      background: #fff;
+    }
+    table { width: 100%; border-collapse: collapse; min-width: 980px; font-size: 0.89rem; }
+    th, td { padding: 9px 10px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+    th:first-child, td:first-child, th:nth-child(2), td:nth-child(2) { text-align: left; }
+    thead th {
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      background: #f7fafc;
+      font-size: 0.8rem;
+      color: #334155;
+    }
+    .chip {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      background: var(--soft);
+      color: #1d4ed8;
+    }
+    .hidden { display: none; }
+    @media (max-width: 980px) {
+      .grid { grid-template-columns: 1fr; }
+      .inputs { grid-template-columns: 1fr; }
+      .kpis { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap">
+    <h1>Dashboard de tarifas PVP 2026</h1>
+    <p class="sub">Calcula total estancia, precio por persona y por persona/día para vistas y áticos, aplicando siempre el descuento más alto (no acumulable).</p>
+
+    <section class="grid">
+      <article class="card">
+        <h2>Parámetros de reserva</h2>
+        <div class="inputs">
+          <div class="field">
+            <label for="mode">Modo de cálculo</label>
+            <select id="mode">
+              <option value="room" selected>Por habitación seleccionada</option>
+              <option value="guests">Por adultos/niños (mostrar habitaciones válidas)</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="roomType">Habitación</label>
+            <select id="roomType"></select>
+          </div>
+          <div class="field">
+            <label for="adults">Adultos</label>
+            <input id="adults" type="number" min="1" step="1" value="2" />
+          </div>
+          <div class="field">
+            <label for="children">Niños</label>
+            <input id="children" type="number" min="0" step="1" value="0" />
+          </div>
+          <div class="field">
+            <label for="checkIn">Entrada</label>
+            <input id="checkIn" type="date" value="2026-07-10" />
+          </div>
+          <div class="field">
+            <label for="checkOut">Salida</label>
+            <input id="checkOut" type="date" value="2026-07-24" />
+          </div>
+          <div class="field">
+            <label for="bookingDate">Fecha de reserva</label>
+            <input id="bookingDate" type="date" value="2026-02-24" />
+          </div>
+          <div class="field">
+            <label for="manualNights">Noches (manual, opcional)</label>
+            <input id="manualNights" type="number" min="1" step="1" placeholder="Usar fechas" />
+          </div>
+        </div>
+      </article>
+
+      <article class="card">
+        <h2>Resumen</h2>
+        <div class="kpis">
+          <div class="kpi"><div class="label">Temporada aplicada</div><div class="value" id="kSeason">-</div></div>
+          <div class="kpi"><div class="label">Noches</div><div class="value" id="kNights">-</div></div>
+          <div class="kpi"><div class="label">Huéspedes</div><div class="value" id="kGuests">-</div></div>
+          <div class="kpi"><div class="label">Descuento por estancia</div><div class="value" id="kStayDisc">-</div></div>
+          <div class="kpi"><div class="label">Descuento anticipada</div><div class="value" id="kEarlyDisc">-</div></div>
+          <div class="kpi"><div class="label">Descuento aplicado</div><div class="value" id="kAppliedDisc">-</div></div>
+        </div>
+        <div class="hint" id="discountRule"></div>
+      </article>
+    </section>
+
+    <section class="card" style="margin-top:14px;">
+      <h2>Opciones calculadas</h2>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Vista / ático</th>
+              <th>Habitación</th>
+              <th>Tarifa base noche</th>
+              <th>Noches</th>
+              <th>Descuento</th>
+              <th>Cama supletoria</th>
+              <th>Total estancia</th>
+              <th>Por persona</th>
+              <th>Por persona/día</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const EXTRA_BED_PRICE = 17;
+    const EARLY_BIRD_DATE = "2026-03-31";
+
+    const ROOM_CAPACITY = {
+      "1 H - 1B": 2,
+      "2 H - 2 B": 4,
+      "3 H - 2 B": 6
+    };
+
+    const RATE_TABLE = {
+      summer: {
+        label: "Julio y Agosto",
+        categories: {
+          "Vistas piscina y parque natural": {
+            "1 H - 1B": 179,
+            "2 H - 2 B": 232.7,
+            "3 H - 2 B": 268.5
+          },
+          "Vista mar o ático con barbacoa": {
+            "1 H - 1B": 214.8,
+            "2 H - 2 B": 279.24,
+            "3 H - 2 B": 322.2
+          },
+          "Ático con barbacoa": {
+            "1 H - 1B": 225.54,
+            "2 H - 2 B": 293.202,
+            "3 H - 2 B": 338.31
+          }
+        }
+      },
+      shoulder: {
+        label: "Junio y Septiembre",
+        categories: {
+          "Vistas piscina y parque natural": {
+            "1 H - 1B": 139,
+            "2 H - 2 B": 180.7,
+            "3 H - 2 B": 208.5
+          },
+          "Vista mar o ático con barbacoa": {
+            "1 H - 1B": 166.8,
+            "2 H - 2 B": 216.84,
+            "3 H - 2 B": 250.2
+          },
+          "Ático con barbacoa": {
+            "1 H - 1B": 175.14,
+            "2 H - 2 B": 227.682,
+            "3 H - 2 B": 262.71
+          }
+        }
+      }
+    };
+
+    const roomTypes = Object.keys(ROOM_CAPACITY);
+    const fieldIds = ["mode", "roomType", "adults", "children", "checkIn", "checkOut", "bookingDate", "manualNights"];
+    const el = Object.fromEntries(fieldIds.map((id) => [id, document.getElementById(id)]));
+    const rowsEl = document.getElementById("rows");
+
+    const kSeason = document.getElementById("kSeason");
+    const kNights = document.getElementById("kNights");
+    const kGuests = document.getElementById("kGuests");
+    const kStayDisc = document.getElementById("kStayDisc");
+    const kEarlyDisc = document.getElementById("kEarlyDisc");
+    const kAppliedDisc = document.getElementById("kAppliedDisc");
+    const discountRule = document.getElementById("discountRule");
+
+    const fmtEUR = new Intl.NumberFormat("es-ES", { style: "currency", currency: "EUR", maximumFractionDigits: 2 });
+    const fmtPct = new Intl.NumberFormat("es-ES", { style: "percent", maximumFractionDigits: 0 });
+
+    function init() {
+      roomTypes.forEach((rt) => {
+        const opt = document.createElement("option");
+        opt.value = rt;
+        opt.textContent = rt;
+        el.roomType.appendChild(opt);
+      });
+      el.roomType.value = roomTypes[0];
+
+      fieldIds.forEach((id) => el[id].addEventListener("input", recalc));
+      fieldIds.forEach((id) => el[id].addEventListener("change", recalc));
+
+      toggleRoomField();
+      recalc();
+    }
+
+    function parseDate(value) {
+      if (!value) return null;
+      const [y, m, d] = value.split("-").map(Number);
+      return new Date(y, m - 1, d);
+    }
+
+    function getNights(checkIn, checkOut, manualNights) {
+      const manual = Number.parseInt(manualNights, 10);
+      if (Number.isFinite(manual) && manual > 0) return manual;
+      if (!checkIn || !checkOut) return 0;
+      const ms = checkOut.getTime() - checkIn.getTime();
+      return Math.round(ms / (24 * 60 * 60 * 1000));
+    }
+
+    function resolveSeason(checkIn) {
+      if (!checkIn) return null;
+      const month = checkIn.getMonth() + 1;
+      if (month === 7 || month === 8) return "summer";
+      if (month === 6 || month === 9) return "shoulder";
+      return null;
+    }
+
+    function getStayDiscount(nights) {
+      if (nights >= 28) return 0.2;
+      if (nights >= 21) return 0.15;
+      if (nights >= 14) return 0.1;
+      return 0;
+    }
+
+    function getEarlyDiscount(bookingDate) {
+      if (!bookingDate) return 0;
+      const cutoff = parseDate(EARLY_BIRD_DATE);
+      return bookingDate.getTime() <= cutoff.getTime() ? 0.1 : 0;
+    }
+
+    function roomSelection(mode, selectedRoom, guests) {
+      if (mode === "room") return [selectedRoom];
+      return roomTypes.filter((room) => guests <= ROOM_CAPACITY[room] + 1);
+    }
+
+    function recalc() {
+      toggleRoomField();
+
+      const mode = el.mode.value;
+      const selectedRoom = el.roomType.value;
+      const adults = Math.max(1, Number.parseInt(el.adults.value, 10) || 1);
+      const children = Math.max(0, Number.parseInt(el.children.value, 10) || 0);
+      const guests = adults + children;
+
+      const checkIn = parseDate(el.checkIn.value);
+      const checkOut = parseDate(el.checkOut.value);
+      const bookingDate = parseDate(el.bookingDate.value);
+      const nights = getNights(checkIn, checkOut, el.manualNights.value);
+      const seasonKey = resolveSeason(checkIn);
+
+      const stayDiscount = getStayDiscount(nights);
+      const earlyDiscount = getEarlyDiscount(bookingDate);
+      const appliedDiscount = Math.max(stayDiscount, earlyDiscount);
+
+      kSeason.textContent = seasonKey ? RATE_TABLE[seasonKey].label : "Fuera de temporada PVP";
+      kNights.textContent = nights > 0 ? String(nights) : "-";
+      kGuests.textContent = String(guests);
+      kStayDisc.textContent = fmtPct.format(stayDiscount);
+      kEarlyDisc.textContent = fmtPct.format(earlyDiscount);
+      kAppliedDisc.innerHTML = `<span class="chip">${fmtPct.format(appliedDiscount)}</span>`;
+
+      discountRule.textContent =
+        "Regla aplicada: el 10% por reserva hasta el 31/03/2026 no se suma a descuentos por duración. Se aplica solo el porcentaje más alto.";
+
+      if (!seasonKey || nights <= 0 || (checkOut && checkIn && checkOut <= checkIn)) {
+        rowsEl.innerHTML = `<tr><td colspan="9">Selecciona fechas válidas dentro de junio, julio, agosto o septiembre de 2026.</td></tr>`;
+        return;
+      }
+
+      const rooms = roomSelection(mode, selectedRoom, guests);
+      if (!rooms.length) {
+        rowsEl.innerHTML = `<tr><td colspan="9">No hay habitaciones válidas para ${guests} huéspedes.</td></tr>`;
+        return;
+      }
+
+      const categories = RATE_TABLE[seasonKey].categories;
+      const lines = [];
+
+      Object.entries(categories).forEach(([categoryName, byRoom]) => {
+        rooms.forEach((room) => {
+          const nightlyBase = byRoom[room];
+          if (typeof nightlyBase !== "number") return;
+
+          const usesExtraBed = guests > ROOM_CAPACITY[room];
+          const extraTotal = usesExtraBed ? EXTRA_BED_PRICE * nights : 0;
+          const baseTotal = nightlyBase * nights;
+          const discountedBaseTotal = baseTotal * (1 - appliedDiscount);
+          const totalStay = discountedBaseTotal + extraTotal;
+          const perPerson = guests > 0 ? totalStay / guests : 0;
+          const perPersonDay = guests > 0 && nights > 0 ? totalStay / guests / nights : 0;
+
+          lines.push({
+            categoryName,
+            room,
+            nightlyBase,
+            nights,
+            appliedDiscount,
+            extraTotal,
+            totalStay,
+            perPerson,
+            perPersonDay
+          });
+        });
+      });
+
+      lines.sort((a, b) => a.totalStay - b.totalStay);
+
+      rowsEl.innerHTML = lines
+        .map(
+          (x) => `<tr>
+            <td>${x.categoryName}</td>
+            <td>${x.room}</td>
+            <td>${fmtEUR.format(x.nightlyBase)}</td>
+            <td>${x.nights}</td>
+            <td>${fmtPct.format(x.appliedDiscount)}</td>
+            <td>${x.extraTotal > 0 ? fmtEUR.format(x.extraTotal) : "-"}</td>
+            <td><strong>${fmtEUR.format(x.totalStay)}</strong></td>
+            <td>${fmtEUR.format(x.perPerson)}</td>
+            <td>${fmtEUR.format(x.perPersonDay)}</td>
+          </tr>`
+        )
+        .join("");
+    }
+
+    function toggleRoomField() {
+      el.roomType.disabled = el.mode.value === "guests";
+    }
+
+    init();
+  </script>
+</body>
+</html>
