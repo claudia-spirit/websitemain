@@ -6,16 +6,16 @@
   <title>Dashboard PVP 2026</title>
   <style>
     :root {
-      --bg: #f3f6fb;
+      --bg: #f5f6f7;
       --card: #ffffff;
-      --text: #132238;
-      --muted: #54657e;
-      --line: #d9e3f0;
-      --brand: #0f766e;
-      --brand-2: #2563eb;
-      --soft: #e8f3ff;
-      --ok-bg: #ecfdf3;
-      --ok-line: #86efac;
+      --text: #003039;
+      --muted: #5f7278;
+      --line: #dbe3e6;
+      --brand: #eb915f;
+      --brand-2: #369fcd;
+      --soft: #eaf6fb;
+      --ok-bg: #eef9f5;
+      --ok-line: #a7dccc;
       --radius: 14px;
       --shadow: 0 12px 28px rgba(16, 24, 40, 0.08);
     }
@@ -25,8 +25,8 @@
       font-family: "Avenir Next", "Segoe UI", sans-serif;
       color: var(--text);
       background:
-        radial-gradient(1100px 540px at -8% -10%, #d2f2ec 0%, transparent 60%),
-        radial-gradient(1100px 620px at 108% 0%, #dce6ff 0%, transparent 55%),
+        radial-gradient(1100px 540px at -8% -10%, rgba(235, 145, 95, 0.18) 0%, transparent 60%),
+        radial-gradient(1100px 620px at 108% 0%, rgba(54, 159, 205, 0.2) 0%, transparent 55%),
         var(--bg);
     }
     .wrap { max-width: 1220px; margin: 0 auto; padding: 24px; }
@@ -52,7 +52,7 @@
       color: var(--text);
       background: #fff;
     }
-    .field input:focus, .field select:focus { outline: 2px solid #bde5ff; border-color: var(--brand-2); }
+    .field input:focus, .field select:focus { outline: 2px solid rgba(54, 159, 205, 0.22); border-color: var(--brand-2); }
     .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
     .kpi {
       border: 1px solid var(--line);
@@ -88,7 +88,7 @@
       z-index: 1;
       background: #f7fafc;
       font-size: 0.8rem;
-      color: #334155;
+      color: #35535b;
     }
     .chip {
       display: inline-block;
@@ -97,9 +97,21 @@
       font-size: 0.74rem;
       font-weight: 700;
       background: var(--soft);
-      color: #1d4ed8;
+      color: #0b6b90;
     }
     .hidden { display: none; }
+    .actions { margin-top: 10px; display: flex; justify-content: flex-end; }
+    .btn {
+      border: 1px solid var(--brand);
+      background: var(--brand);
+      color: #fff;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border-radius: 10px;
+      padding: 9px 12px;
+      cursor: pointer;
+    }
+    .btn:hover { background: #d8804d; border-color: #d8804d; }
     @media (max-width: 980px) {
       .grid { grid-template-columns: 1fr; }
       .inputs { grid-template-columns: 1fr; }
@@ -170,6 +182,9 @@
 
     <section class="card" style="margin-top:14px;">
       <h2>Opciones calculadas</h2>
+      <div class="actions">
+        <button id="exportExcel" class="btn" type="button">Exportar a Excel</button>
+      </div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -194,6 +209,12 @@
   <script>
     const EXTRA_BED_PRICE = 17;
     const EARLY_BIRD_DATE = "2026-03-31";
+    const LOGO_PATHS = [
+      "/spirit-booking-engine/other-resources/logo.png",
+      "/other-resources/logo.png",
+      "/assets/images/logo.png"
+    ];
+    let cachedLogoDataUri = null;
 
     const ROOM_CAPACITY = {
       "1 H - 1B": 2,
@@ -248,6 +269,7 @@
     const fieldIds = ["mode", "roomType", "adults", "children", "checkIn", "checkOut", "bookingDate", "manualNights"];
     const el = Object.fromEntries(fieldIds.map((id) => [id, document.getElementById(id)]));
     const rowsEl = document.getElementById("rows");
+    const exportBtn = document.getElementById("exportExcel");
 
     const kSeason = document.getElementById("kSeason");
     const kNights = document.getElementById("kNights");
@@ -271,6 +293,7 @@
 
       fieldIds.forEach((id) => el[id].addEventListener("input", recalc));
       fieldIds.forEach((id) => el[id].addEventListener("change", recalc));
+      exportBtn.addEventListener("click", exportExcel);
 
       toggleRoomField();
       recalc();
@@ -407,6 +430,129 @@
 
     function toggleRoomField() {
       el.roomType.disabled = el.mode.value === "guests";
+    }
+
+    function escapeHtml(text) {
+      return String(text)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;");
+    }
+
+    function blobToDataUri(blob) {
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = () => reject(new Error("No se pudo convertir el logo."));
+        reader.readAsDataURL(blob);
+      });
+    }
+
+    async function resolveLogoDataUri() {
+      if (cachedLogoDataUri) return cachedLogoDataUri;
+      for (const path of LOGO_PATHS) {
+        try {
+          const response = await fetch(path);
+          if (!response.ok) continue;
+          const blob = await response.blob();
+          cachedLogoDataUri = await blobToDataUri(blob);
+          return cachedLogoDataUri;
+        } catch (_error) {
+          // Seguimos con la siguiente ruta.
+        }
+      }
+      cachedLogoDataUri = "";
+      return cachedLogoDataUri;
+    }
+
+    async function exportExcel() {
+      const tableRows = Array.from(rowsEl.querySelectorAll("tr"));
+      if (!tableRows.length || tableRows[0].children.length === 1) {
+        alert("No hay datos para exportar. Revisa las fechas y la temporada.");
+        return;
+      }
+
+      const today = new Date();
+      const y = today.getFullYear();
+      const m = String(today.getMonth() + 1).padStart(2, "0");
+      const d = String(today.getDate()).padStart(2, "0");
+      const hh = String(today.getHours()).padStart(2, "0");
+      const mm = String(today.getMinutes()).padStart(2, "0");
+      const filename = `dashboard-pvp-2026_${y}${m}${d}_${hh}${mm}.xls`;
+
+      const headerCells = Array.from(document.querySelectorAll("thead th"))
+        .map((th) => `<th>${escapeHtml(th.textContent || "")}</th>`)
+        .join("");
+
+      const bodyRows = tableRows
+        .map((tr) => {
+          const cells = Array.from(tr.children)
+            .map((td) => `<td>${escapeHtml(td.textContent || "")}</td>`)
+            .join("");
+          return `<tr>${cells}</tr>`;
+        })
+        .join("");
+
+      const summaryHtml = `
+        <table class="summary">
+          <tr><td class="k">Temporada aplicada</td><td>${escapeHtml(kSeason.textContent || "-")}</td></tr>
+          <tr><td class="k">Noches</td><td>${escapeHtml(kNights.textContent || "-")}</td></tr>
+          <tr><td class="k">Huéspedes</td><td>${escapeHtml(kGuests.textContent || "-")}</td></tr>
+          <tr><td class="k">Descuento por estancia</td><td>${escapeHtml(kStayDisc.textContent || "-")}</td></tr>
+          <tr><td class="k">Descuento anticipada</td><td>${escapeHtml(kEarlyDisc.textContent || "-")}</td></tr>
+          <tr><td class="k">Descuento aplicado</td><td>${escapeHtml(kAppliedDisc.textContent || "-")}</td></tr>
+        </table>`;
+      const logoDataUri = await resolveLogoDataUri();
+      const logoHtml = logoDataUri
+        ? `<img src="${logoDataUri}" alt="Logo" class="logo" />`
+        : `<div class="logo-fallback">The Spirit Collection</div>`;
+
+      const html = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+          <head>
+            <meta charset="UTF-8" />
+            <style>
+              body { font-family: Calibri, Arial, sans-serif; color: #1f2937; }
+              .head { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
+              .logo { height: 42px; width: auto; display: block; }
+              .logo-fallback { font-size: 12pt; font-weight: 700; color: #003039; }
+              h2 { margin: 0 0 6px; color: #003039; }
+              .note { font-size: 11pt; color: #4b5563; margin: 0 0 10px; }
+              table { border-collapse: collapse; }
+              .summary td { border: 1px solid #dbe3ef; padding: 6px 8px; font-size: 10.5pt; }
+              .summary .k { font-weight: 700; background: #f7fafc; }
+              .main { margin-top: 10px; min-width: 1000px; }
+              .main th { background: #369fcd; color: #ffffff; border: 1px solid #cfd8e3; padding: 8px 10px; font-size: 10.5pt; }
+              .main td { border: 1px solid #dbe3ef; padding: 7px 9px; font-size: 10.5pt; }
+              .main td:nth-child(1), .main td:nth-child(2) { text-align: left; }
+              .main td:nth-child(n+3) { text-align: right; }
+            </style>
+          </head>
+          <body>
+            <div class="head">
+              ${logoHtml}
+              <h2>Dashboard PVP 2026</h2>
+            </div>
+            <p class="note">Exportado: ${d}/${m}/${y} ${hh}:${mm}</p>
+            ${summaryHtml}
+            <table class="main">
+              <thead><tr>${headerCells}</tr></thead>
+              <tbody>${bodyRows}</tbody>
+            </table>
+          </body>
+        </html>`;
+
+      const blob = new Blob(["\ufeff", html], {
+        type: "application/vnd.ms-excel;charset=utf-8;"
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
     }
 
     init();
