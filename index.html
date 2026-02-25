@@ -30,6 +30,8 @@
         var(--bg);
     }
     .wrap { max-width: 1220px; margin: 0 auto; padding: 24px; }
+    .brand { margin-bottom: 8px; min-height: 54px; display: flex; align-items: center; }
+    .brand__logo { max-height: 48px; width: auto; display: block; }
     h1 { margin: 0 0 6px; font-size: clamp(1.4rem, 2.6vw, 2rem); }
     .sub { margin: 0 0 18px; color: var(--muted); font-size: 0.95rem; }
     .grid { display: grid; grid-template-columns: 1.1fr 1fr; gap: 14px; }
@@ -43,6 +45,7 @@
     .card h2 { margin: 0 0 12px; font-size: 1rem; }
     .inputs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; }
     .field { display: grid; gap: 6px; }
+    .field { min-width: 0; }
     .field label { font-size: 0.82rem; color: var(--muted); }
     .field input, .field select {
       border: 1px solid var(--line);
@@ -52,6 +55,13 @@
       color: var(--text);
       background: #fff;
     }
+    .field select {
+      width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .full-row { grid-column: 1 / -1; }
     .field input:focus, .field select:focus { outline: 2px solid rgba(54, 159, 205, 0.22); border-color: var(--brand-2); }
     .kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
     .kpi {
@@ -121,6 +131,9 @@
 </head>
 <body>
   <main class="wrap">
+    <div class="brand">
+      <img id="dashboardLogo" class="brand__logo hidden" alt="Logo Spirit" />
+    </div>
     <h1>Dashboard de tarifas PVP 2026</h1>
     <p class="sub">Calcula total estancia, precio por persona y por persona/día para vistas y áticos, aplicando siempre el descuento más alto (no acumulable).</p>
 
@@ -135,7 +148,7 @@
               <option value="guests">Por adultos/niños (mostrar habitaciones válidas)</option>
             </select>
           </div>
-          <div class="field">
+          <div class="field full-row" id="roomTypeField">
             <label for="roomType">Habitación</label>
             <select id="roomType"></select>
           </div>
@@ -181,6 +194,24 @@
     </section>
 
     <section class="card" style="margin-top:14px;">
+      <h2>Datos de contacto para propuesta</h2>
+      <div class="inputs">
+        <div class="field">
+          <label for="contactName">Nombre</label>
+          <input id="contactName" type="text" placeholder="Nombre y apellidos" />
+        </div>
+        <div class="field">
+          <label for="contactPhone">Teléfono</label>
+          <input id="contactPhone" type="tel" placeholder="+34..." />
+        </div>
+        <div class="field">
+          <label for="contactEmail">Correo</label>
+          <input id="contactEmail" type="email" placeholder="correo@dominio.com" />
+        </div>
+      </div>
+    </section>
+
+    <section class="card" style="margin-top:14px;">
       <h2>Opciones calculadas</h2>
       <div class="actions">
         <button id="exportExcel" class="btn" type="button">Exportar a Excel</button>
@@ -210,6 +241,11 @@
     const EXTRA_BED_PRICE = 17;
     const EARLY_BIRD_DATE = "2026-03-31";
     const LOGO_PATHS = [
+      "./logo.png",
+      "logo.png",
+      "/logo.png",
+      "/logo-spirit.png",
+      "/spirit-logo.png",
       "/spirit-booking-engine/other-resources/logo.png",
       "/other-resources/logo.png",
       "/assets/images/logo.png"
@@ -270,6 +306,11 @@
     const el = Object.fromEntries(fieldIds.map((id) => [id, document.getElementById(id)]));
     const rowsEl = document.getElementById("rows");
     const exportBtn = document.getElementById("exportExcel");
+    const roomTypeField = document.getElementById("roomTypeField");
+    const contactNameEl = document.getElementById("contactName");
+    const contactPhoneEl = document.getElementById("contactPhone");
+    const contactEmailEl = document.getElementById("contactEmail");
+    const dashboardLogoEl = document.getElementById("dashboardLogo");
 
     const kSeason = document.getElementById("kSeason");
     const kNights = document.getElementById("kNights");
@@ -295,6 +336,7 @@
       fieldIds.forEach((id) => el[id].addEventListener("change", recalc));
       exportBtn.addEventListener("click", exportExcel);
 
+      setupDashboardLogo();
       toggleRoomField();
       recalc();
     }
@@ -429,7 +471,9 @@
     }
 
     function toggleRoomField() {
-      el.roomType.disabled = el.mode.value === "guests";
+      const hideRoom = el.mode.value === "guests";
+      el.roomType.disabled = hideRoom;
+      roomTypeField.classList.toggle("hidden", hideRoom);
     }
 
     function escapeHtml(text) {
@@ -465,6 +509,20 @@
       return cachedLogoDataUri;
     }
 
+    async function setupDashboardLogo() {
+      for (const path of LOGO_PATHS) {
+        try {
+          const response = await fetch(path);
+          if (!response.ok) continue;
+          dashboardLogoEl.src = path;
+          dashboardLogoEl.classList.remove("hidden");
+          return;
+        } catch (_error) {
+          // Seguimos con la siguiente ruta.
+        }
+      }
+    }
+
     async function exportExcel() {
       const tableRows = Array.from(rowsEl.querySelectorAll("tr"));
       if (!tableRows.length || tableRows[0].children.length === 1) {
@@ -495,6 +553,9 @@
 
       const summaryHtml = `
         <table class="summary">
+          <tr><td class="k">Nombre contacto</td><td>${escapeHtml(contactNameEl.value || "-")}</td></tr>
+          <tr><td class="k">Teléfono contacto</td><td>${escapeHtml(contactPhoneEl.value || "-")}</td></tr>
+          <tr><td class="k">Correo contacto</td><td>${escapeHtml(contactEmailEl.value || "-")}</td></tr>
           <tr><td class="k">Temporada aplicada</td><td>${escapeHtml(kSeason.textContent || "-")}</td></tr>
           <tr><td class="k">Noches</td><td>${escapeHtml(kNights.textContent || "-")}</td></tr>
           <tr><td class="k">Huéspedes</td><td>${escapeHtml(kGuests.textContent || "-")}</td></tr>
@@ -505,7 +566,7 @@
       const logoDataUri = await resolveLogoDataUri();
       const logoHtml = logoDataUri
         ? `<img src="${logoDataUri}" alt="Logo" class="logo" />`
-        : `<div class="logo-fallback">The Spirit Collection</div>`;
+        : "";
 
       const html = `
         <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
@@ -515,7 +576,6 @@
               body { font-family: Calibri, Arial, sans-serif; color: #1f2937; }
               .head { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
               .logo { height: 42px; width: auto; display: block; }
-              .logo-fallback { font-size: 12pt; font-weight: 700; color: #003039; }
               h2 { margin: 0 0 6px; color: #003039; }
               .note { font-size: 11pt; color: #4b5563; margin: 0 0 10px; }
               table { border-collapse: collapse; }
