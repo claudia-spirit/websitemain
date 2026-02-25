@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Dashboard PVP 2026</title>
+  <title>Tarifas 2026</title>
   <style>
     :root {
       --bg: #f5f6f7;
@@ -134,7 +134,7 @@
     <div class="brand">
       <img id="dashboardLogo" class="brand__logo hidden" alt="Logo Spirit" />
     </div>
-    <h1>Dashboard de tarifas PVP 2026</h1>
+    <h1>Tarifas 2026</h1>
     <p class="sub">Calcula total estancia, precio por persona y por persona/día para vistas y áticos, aplicando siempre el descuento más alto (no acumulable).</p>
 
     <section class="grid">
@@ -492,8 +492,30 @@
       });
     }
 
+    function getLoadedLogoDataUri() {
+      if (!dashboardLogoEl || !dashboardLogoEl.complete || !dashboardLogoEl.naturalWidth) {
+        return "";
+      }
+      try {
+        const canvas = document.createElement("canvas");
+        canvas.width = dashboardLogoEl.naturalWidth;
+        canvas.height = dashboardLogoEl.naturalHeight;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return "";
+        ctx.drawImage(dashboardLogoEl, 0, 0);
+        return canvas.toDataURL("image/png");
+      } catch (_error) {
+        return "";
+      }
+    }
+
     async function resolveLogoDataUri() {
       if (cachedLogoDataUri) return cachedLogoDataUri;
+      const loadedLogo = getLoadedLogoDataUri();
+      if (loadedLogo) {
+        cachedLogoDataUri = loadedLogo;
+        return cachedLogoDataUri;
+      }
       for (const path of LOGO_PATHS) {
         try {
           const response = await fetch(path);
@@ -509,18 +531,18 @@
       return cachedLogoDataUri;
     }
 
-    async function setupDashboardLogo() {
-      for (const path of LOGO_PATHS) {
-        try {
-          const response = await fetch(path);
-          if (!response.ok) continue;
-          dashboardLogoEl.src = path;
-          dashboardLogoEl.classList.remove("hidden");
-          return;
-        } catch (_error) {
-          // Seguimos con la siguiente ruta.
-        }
+    function setupDashboardLogo() {
+      let idx = 0;
+      function tryNext() {
+        if (idx >= LOGO_PATHS.length) return;
+        dashboardLogoEl.src = LOGO_PATHS[idx];
+        idx += 1;
       }
+      dashboardLogoEl.addEventListener("load", () => {
+        dashboardLogoEl.classList.remove("hidden");
+      });
+      dashboardLogoEl.addEventListener("error", tryNext);
+      tryNext();
     }
 
     async function exportExcel() {
@@ -536,7 +558,7 @@
       const d = String(today.getDate()).padStart(2, "0");
       const hh = String(today.getHours()).padStart(2, "0");
       const mm = String(today.getMinutes()).padStart(2, "0");
-      const filename = `dashboard-pvp-2026_${y}${m}${d}_${hh}${mm}.xls`;
+      const filename = `tarifas-2026_${y}${m}${d}_${hh}${mm}.xls`;
 
       const headerCells = Array.from(document.querySelectorAll("thead th"))
         .map((th) => `<th>${escapeHtml(th.textContent || "")}</th>`)
@@ -563,19 +585,23 @@
           <tr><td class="k">Descuento anticipada</td><td>${escapeHtml(kEarlyDisc.textContent || "-")}</td></tr>
           <tr><td class="k">Descuento aplicado</td><td>${escapeHtml(kAppliedDisc.textContent || "-")}</td></tr>
         </table>`;
-      const logoDataUri = await resolveLogoDataUri();
-      const logoHtml = logoDataUri
-        ? `<img src="${logoDataUri}" alt="Logo" class="logo" />`
-        : "";
-
       const html = `
         <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
           <head>
             <meta charset="UTF-8" />
+            <!--[if gte mso 9]><xml>
+            <x:ExcelWorkbook>
+              <x:ExcelWorksheets>
+                <x:ExcelWorksheet>
+                  <x:Name>Tarifas 2026</x:Name>
+                  <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+                </x:ExcelWorksheet>
+              </x:ExcelWorksheets>
+            </x:ExcelWorkbook>
+            </xml><![endif]-->
             <style>
               body { font-family: Calibri, Arial, sans-serif; color: #1f2937; }
-              .head { display: flex; align-items: center; gap: 12px; margin-bottom: 6px; }
-              .logo { height: 42px; width: auto; display: block; }
+              .head { margin-bottom: 6px; }
               h2 { margin: 0 0 6px; color: #003039; }
               .note { font-size: 11pt; color: #4b5563; margin: 0 0 10px; }
               table { border-collapse: collapse; }
@@ -590,8 +616,7 @@
           </head>
           <body>
             <div class="head">
-              ${logoHtml}
-              <h2>Dashboard PVP 2026</h2>
+              <h2>Tarifas 2026</h2>
             </div>
             <p class="note">Exportado: ${d}/${m}/${y} ${hh}:${mm}</p>
             ${summaryHtml}
